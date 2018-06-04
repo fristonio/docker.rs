@@ -1,0 +1,6 @@
+[package]
+name = "docker-rs"
+version = "0.1.0"
+authors = ["Deepesh Pathak <deepshpathak@gmail.com>"]
+
+[dependencies]
