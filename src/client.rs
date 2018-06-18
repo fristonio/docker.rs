@@ -18,6 +18,7 @@ enum ConnectionProtocol {
 }
 
 impl DockerClient {
+    /// Creates a new DockerClient object connected to docker's unix domain socket.
     pub fn new(
         connection_addr: &'static str,
     ) -> Result<DockerClient, DockerClientError> {
@@ -43,6 +44,7 @@ impl DockerClient {
             }
         };
 
+        // Check if the protocol is unix or not.
         let protocol = match addr_components[0] {
             "unix" => ConnectionProtocol::UNIX,
             _ => {
@@ -58,5 +60,28 @@ impl DockerClient {
         };
 
         Ok(docker_client)
+    }
+}
+
+
+/// Implement clone for the DockerClient structure.
+/// The clone here is not true clone, the unix_socket cloned
+/// still refers to the stream and change to one of the two will
+/// propogate the changes to other.
+impl Clone for DockerClient {
+    fn clone(&self) -> Self {
+        let sock = self.unix_socket
+            .try_clone().expect("Error while trying to clone the socket");
+
+        let protocol = match self.protocol {
+            ConnectionProtocol::UNIX =>  ConnectionProtocol::UNIX,
+        };
+
+        let docker_client_clone = DockerClient {
+            unix_socket: sock,
+            protocol: protocol
+        };
+
+        return docker_client_clone;
     }
 }
