@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 use std::collections::HashMap;
 
-use utils;
 use api::api_utils;
 use api::DockerApiClient;
+use utils;
 
 use serde_json;
 
@@ -22,19 +22,19 @@ pub struct Container {
     #[serde(default)]
     pub SizeRootFs: u64,
     pub HostConfig: HostConfig,
-    pub Mounts: Vec<Mounts>
+    pub Mounts: Vec<Mounts>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Port {
     pub PrivatePort: u32,
     pub PublicPort: u32,
-    pub Type: String
+    pub Type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HostConfig {
-    pub NetworkMode: String
+    pub NetworkMode: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -45,18 +45,21 @@ pub struct Mounts {
     pub Driver: String,
     pub Mode: String,
     pub RW: bool,
-    pub Propagation: String
+    pub Propagation: String,
 }
 
 pub trait Containers: DockerApiClient {
-
     fn get_response_from_api(
         &self,
         api_endpoint: &str,
         method: &str,
-        query_params: &str
+        query_params: &str,
     ) -> Result<String, String> {
-        let req = match api_utils::get_formatted_api_request(api_endpoint, method, query_params) {
+        let req = match api_utils::get_formatted_api_request(
+            api_endpoint,
+            method,
+            query_params,
+        ) {
             Some(req) => req,
             None => return Err("Error while preparing request".to_string()),
         };
@@ -78,14 +81,21 @@ pub trait Containers: DockerApiClient {
         let api_endpoint = "/containers/json";
         let method = "GET";
 
-        let json_resp = match self.get_response_from_api(api_endpoint, method, "") {
-            Ok(resp) => resp,
-            Err(err) => return Err(err),
-        };
+        let json_resp =
+            match self.get_response_from_api(api_endpoint, method, "") {
+                Ok(resp) => resp,
+                Err(err) => return Err(err),
+            };
 
-        let containers: Vec<Container> = match serde_json::from_str(&json_resp) {
+        let containers: Vec<Container> = match serde_json::from_str(&json_resp)
+        {
             Ok(info) => info,
-            Err(err) => return Err(format!("Error while deserializing JSON response : {}", err))
+            Err(err) => {
+                return Err(format!(
+                    "Error while deserializing JSON response : {}",
+                    err
+                ))
+            }
         };
 
         Ok(containers)
@@ -97,14 +107,24 @@ pub trait Containers: DockerApiClient {
         let method = "GET";
         let query_params = "?all=true";
 
-        let json_resp = match self.get_response_from_api(api_endpoint, method, query_params) {
+        let json_resp = match self.get_response_from_api(
+            api_endpoint,
+            method,
+            query_params,
+        ) {
             Ok(resp) => resp,
             Err(err) => return Err(err),
         };
 
-        let containers: Vec<Container> = match serde_json::from_str(&json_resp) {
+        let containers: Vec<Container> = match serde_json::from_str(&json_resp)
+        {
             Ok(info) => info,
-            Err(err) => return Err(format!("Error while deserializing JSON response : {}", err))
+            Err(err) => {
+                return Err(format!(
+                    "Error while deserializing JSON response : {}",
+                    err
+                ))
+            }
         };
 
         Ok(containers)

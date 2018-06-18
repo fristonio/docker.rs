@@ -1,6 +1,6 @@
 pub mod api_utils;
-pub mod version;
 pub mod containers;
+pub mod version;
 
 /// Highest level trait for a DockerAPI client
 ///

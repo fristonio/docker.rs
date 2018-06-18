@@ -3,9 +3,9 @@ use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
 
-use api::DockerApiClient;
-use api::version::Version;
 use api::containers::Containers;
+use api::version::Version;
+use api::DockerApiClient;
 
 use errors::DockerClientError;
 use utils;

@@ -1,7 +1,7 @@
 extern crate docker_rs;
 
-use docker_rs::api::version::Version;
 use docker_rs::api::containers::Containers;
+use docker_rs::api::version::Version;
 use docker_rs::client::DockerClient;
 
 use std::process::exit;
