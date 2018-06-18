@@ -5,6 +5,7 @@
 #[macro_use]
 extern crate quick_error;
 
+pub mod api;
 pub mod client;
 mod errors;
 mod utils;
