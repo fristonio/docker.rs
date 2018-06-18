@@ -3,8 +3,10 @@ use std::io::Read;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
 
-use api::version::Version;
 use api::DockerApiClient;
+use api::version::Version;
+use api::containers::Containers;
+
 use errors::DockerClientError;
 use utils;
 
@@ -72,7 +74,7 @@ impl DockerClient {
 /// still refers to the stream and change to one of the two will
 /// propogate the changes to other.
 impl Clone for DockerClient {
-    fn clone(&self) -> Self {
+    fn clone(&self) -> DockerClient {
         let sock = self.socket
             .try_clone()
             .expect("Error while trying to clone the socket");
@@ -93,6 +95,7 @@ impl Clone for DockerClient {
 impl DockerApiClient for DockerClient {
     fn request(&self, request: &str) -> Option<Vec<u8>> {
         let mut client = self.socket.try_clone().unwrap();
+
         let buf = request.as_bytes();
         match client.write_all(buf) {
             Ok(_) => println!("Wrote all data to socket"),
@@ -106,7 +109,7 @@ impl DockerApiClient for DockerClient {
         loop {
             let len = match client.read(&mut buffer) {
                 Ok(len) => len,
-                Err(e) => return None,
+                Err(_) => return None,
             };
 
             for i in 0..len {
@@ -123,3 +126,4 @@ impl DockerApiClient for DockerClient {
 }
 
 impl Version for DockerClient {}
+impl Containers for DockerClient {}
