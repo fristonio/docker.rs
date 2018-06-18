@@ -141,7 +141,7 @@ impl Response {
 pub fn parse_http_response_body(resp: Vec<u8>) -> Option<String> {
     match Response::parse_http_response(resp) {
         Ok(response) => {
-            if response.status_code == 200 {
+            if response.status_code == 200 || response.status_code == 201 {
                 return Some(response.body);
             } else {
                 println!("Response is not OK");

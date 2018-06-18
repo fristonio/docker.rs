@@ -48,6 +48,25 @@ pub struct Mounts {
     pub Propagation: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NewContainerConfig {
+    pub Hostname: String,
+    pub Domainname: String,
+    pub User: String,
+    pub AttachStdin: bool,
+    pub AttachStdout: bool,
+    pub AttachStderr: bool,
+    pub Tty: bool,
+    pub OpenStdin: bool,
+    pub StdinOnce: bool,
+    pub Env: Vec<String>,
+    pub Cmd: Vec<String>,
+    pub Entrypoint: String,
+    pub Image: String,
+    pub Labels: Option<HashMap<String, String>>,
+    pub WorkingDir: String,
+}
+
 pub trait Containers: DockerApiClient {
     fn get_response_from_api(
         &self,
@@ -75,14 +94,16 @@ pub trait Containers: DockerApiClient {
         Ok(resp)
     }
 
-    /// List all the running containers
-    /// Return an instance of Vector of container
-    fn list_running_docker_containers(&self) -> Result<Vec<Container>, String> {
-        let api_endpoint = "/containers/json";
-        let method = "GET";
-
+    /// Get Containers from the API endpoint with the method and query_param.
+    fn get_containers(
+        &self,
+        api_endpoint: &str,
+        method: &str,
+        query_param: &str,
+    ) -> Result<Vec<Container>, String> {
         let json_resp =
-            match self.get_response_from_api(api_endpoint, method, "") {
+            match self.get_response_from_api(api_endpoint, method, query_param)
+            {
                 Ok(resp) => resp,
                 Err(err) => return Err(err),
             };
@@ -98,35 +119,61 @@ pub trait Containers: DockerApiClient {
             }
         };
 
-        Ok(containers)
+        return Ok(containers);
+    }
+
+    /// List all the running containers
+    /// Return an instance of Vector of container
+    fn list_running_containers(
+        &self,
+        limit: Option<u32>,
+    ) -> Result<Vec<Container>, String> {
+        let api_endpoint = "/containers/json";
+        let method = "GET";
+
+        let query_params = match limit {
+            Some(limit) => format!("?size=true&limit={}", limit),
+            None => "?size=true".to_string(),
+        };
+
+        self.get_containers(api_endpoint, method, &query_params)
     }
 
     /// List all containers whether running or stopped.
-    fn list_all_containers(&self) -> Result<Vec<Container>, String> {
+    fn list_all_containers(
+        &self,
+        limit: Option<u32>,
+    ) -> Result<Vec<Container>, String> {
         let api_endpoint = "/containers/json";
         let method = "GET";
-        let query_params = "?all=true";
 
-        let json_resp = match self.get_response_from_api(
-            api_endpoint,
-            method,
-            query_params,
-        ) {
-            Ok(resp) => resp,
-            Err(err) => return Err(err),
+        let query_params = match limit {
+            Some(limit) => format!("?all=true&size=true&limit={}", limit),
+            None => "?all=true&size=true".to_string(),
         };
 
-        let containers: Vec<Container> = match serde_json::from_str(&json_resp)
-        {
-            Ok(info) => info,
-            Err(err) => {
-                return Err(format!(
-                    "Error while deserializing JSON response : {}",
-                    err
-                ))
-            }
+        self.get_containers(api_endpoint, method, &query_params)
+    }
+
+    /// List container with the filter provided, the filter can be looked from
+    /// Docker engine official API documentation.
+    /// https://docs.docker.com/engine/api/v1.37/#operation/ContainerList
+    fn get_container_detail_with_filter(
+        &self,
+        filter: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<Container>, String> {
+        let api_endpoint = "/containers/json";
+        let method = "GET";
+
+        let query_params = match limit {
+            Some(limit) => format!(
+                "?all=true&size=true&limit={}&filter={}",
+                limit, filter
+            ),
+            None => format!("?all=true&size=true&filter={}", filter),
         };
 
-        Ok(containers)
+        self.get_containers(api_endpoint, method, &query_params)
     }
 }
