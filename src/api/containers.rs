@@ -3,11 +3,9 @@ use std::collections::HashMap;
 
 use api::api_utils;
 use api::DockerApiClient;
-use utils;
 use utils::Response;
 
 use serde_json;
-use serde_json::value;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Container {

@@ -1,10 +1,10 @@
-# docker_rs
+# docker.rs
 
 > A docker API wrapper library for rust.
 
 ## Development
 
-docker-rs is currently under development, follow the below instructions to get started.
+docker.rs is currently under development, follow the below instructions to get started.
 
 * Install rustc and rust-toolchain.
 * Clone the repository.
@@ -78,6 +78,11 @@ To add an implementation of HTTP capable DockerClient look at the implementation
 The only required method for implementing `DockerApiClient` is `request` wherein you make a request to the docker API
 and returns the response. Once you have this you can implement each of api helpers like `Containers` for your client
 which uses this function itself. 
+
+### External Links
+
+* [Docs.rs](https://docs.rs/rust_docker)
+* [Crates.io](https://crates.io/crates/rust-docker)
 
 ### License
 
