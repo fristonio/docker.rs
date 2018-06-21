@@ -16,6 +16,20 @@ fn test() {
         }
     };
     let _new_client = client.clone();
-    client.get_version_info();
-    println!("{:?}", client.list_all_containers().unwrap());
+
+    let info = client.get_version_info();
+    println!("{:?}", info);
+
+    let all_containers = client.list_all_containers(None).unwrap();
+    println!("{:?}", all_containers);
+
+    let running_cont = client.list_running_containers(None).unwrap();
+    println!("{:?}", running_cont);
+
+    let mut cmd: Vec<String> = Vec::new();
+    cmd.push("ls".to_string());
+    let res = client
+        .create_container_minimal("kk", "debian:jessie", cmd)
+        .unwrap();
+    println!("{:?}", res);
 }

@@ -144,7 +144,10 @@ pub fn parse_http_response_body(resp: Vec<u8>) -> Option<String> {
             if response.status_code == 200 || response.status_code == 201 {
                 return Some(response.body);
             } else {
-                println!("Response is not OK");
+                println!(
+                    "Response is not OK : {} :: {}",
+                    response.status_code, response.body
+                );
                 return None;
             }
         }

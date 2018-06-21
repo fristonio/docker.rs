@@ -3,6 +3,31 @@ use api::DockerApiClient;
 use utils;
 
 pub trait Version: DockerApiClient {
+    /// Get version info for Docker
+    /// Returns a JSON serialized string containing this information
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// extern crate docker_rs;
+    ///
+    /// use docker_rs::api::containers::Containers;
+    /// use docker_rs::api::version::Version;
+    /// use docker_rs::client::DockerClient;
+    ///
+    /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
+    ///     Ok(a) => a,
+    ///     Err(err) => {
+    ///         println!("{}", err);
+    ///         std::process::exit(1);
+    ///     }
+    /// };
+    ///
+    /// match client.get_version_info() {
+    ///     Ok(info) => println!("Version Info : {}", containers),
+    ///     Err(err) => println!("An error occured : {}", err),
+    /// }
+    /// ```
     fn get_version_info(&self) -> Result<String, String> {
         let api_endpoint = "/info";
         let method = "GET";
