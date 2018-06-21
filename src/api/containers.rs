@@ -6,6 +6,7 @@ use api::DockerApiClient;
 use utils;
 
 use serde_json;
+use serde_json::value;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Container {
@@ -18,6 +19,8 @@ pub struct Container {
     pub Status: String,
     pub Ports: Vec<Port>,
     pub Labels: Option<HashMap<String, String>>,
+
+    #[serde(default)]
     pub SizeRw: Option<u64>,
 
     #[serde(default)]
@@ -67,7 +70,7 @@ pub struct ContainerConfig {
     pub OpenStdin: bool,
     pub StdinOnce: bool,
     pub Env: Vec<String>,
-    pub Entrypoint: String,
+    pub Entrypoint: Option<String>,
     pub Labels: Option<HashMap<String, String>>,
     pub WorkingDir: String,
 }
@@ -75,6 +78,52 @@ pub struct ContainerConfig {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateContainerResponse {
     pub Id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ContainerState {
+    pub Status: String,
+    pub Running: bool,
+    pub Paused: bool,
+    pub Restarting: bool,
+    pub OOMKilled: bool,
+    pub Dead: bool,
+    pub Pid: u64,
+    pub ExitCode: u64,
+    pub Error: String,
+    pub StartedAt: String,
+    pub FinishedAt: String,
+}
+
+/// * To use HostConfig use serde_json
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ContainerDetails {
+    pub Id: String,
+    pub Created: String,
+    pub Path: String,
+    pub Platform: Option<String>,
+    pub Args: Vec<String>,
+    pub State: ContainerState,
+    pub Image: String,
+    pub ResolvConfPath: String,
+    pub Name: String,
+    pub HostnamePath: String,
+    pub HostsPath: String,
+    pub LogPath: String,
+    pub RestartCount: u64,
+    pub Driver: String,
+    pub MountLabel: String,
+    pub ProcessLabel: String,
+    pub AppArmorProfile: String,
+    pub ExecIDs: Option<String>,
+    pub HostConfig: serde_json::Value,
+    pub Config: ContainerConfig,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ContainerFsChange {
+    Path: String,
+    Kind: u8,
 }
 
 pub trait Containers: DockerApiClient {
@@ -294,4 +343,83 @@ pub trait Containers: DockerApiClient {
 
         self.create_container(name, config)
     }
+
+    /// Inspects the container with the provided ID
+    /// Returns Low level information about the container.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// extern crate docker_rs;
+    ///
+    /// use docker_rs::api::containers::Containers;
+    /// use docker_rs::client::DockerClient;
+    ///
+    /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
+    ///     Ok(a) => a,
+    ///     Err(err) => {
+    ///         println!("{}", err);
+    ///         std::process::exit(1);
+    ///     }
+    /// };
+    ///
+    /// // ID of the container passed as an argument.
+    /// match client.inspect_container("f808ca...") {
+    ///     Ok(info) => println!("{:?}", info),
+    ///     Err(err) => println!("An error occured : {}", err),
+    /// }
+    /// ```
+    fn inspect_container(&self, id: &str) -> Result<ContainerDetails, String> {
+        let api_endpoint = format!("/containers/{id}/json", id = id);
+        let method = "GET";
+
+        match self.get_response_from_api(&api_endpoint, method, "") {
+            Ok(resp) => {
+                match serde_json::from_str(&resp) {
+                    Ok(info) => return Ok(info),
+                    Err(err) => {
+                        return Err(format!(
+                            "Error while deserializing JSON response : {}",
+                            err
+                        ))
+                    }
+                };
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    /// Gives the changes done to somewhere in the filesystem in the docker container as a list of
+    /// files with the kind of changes.
+    fn get_container_filesystem_changes(
+        &self,
+        id: &str,
+    ) -> Result<Vec<ContainerFsChange>, String> {
+        let api_endpoint = format!("/containers/{id}/changes", id = id);
+        let method = "GET";
+
+        match self.get_response_from_api(&api_endpoint, method, "") {
+            Ok(resp) => {
+                // If the response is null, then there is no changes in the file
+                // system so just return and empty vector. Serializing this will
+                // result in error.
+                if resp == "null" {
+                    return Ok(Vec::new());
+                }
+
+                match serde_json::from_str(&resp) {
+                    Ok(info) => return Ok(info),
+                    Err(err) => {
+                        return Err(format!(
+                            "Error while deserializing JSON response : {}",
+                            err
+                        ))
+                    }
+                };
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    // Function to manipulate container statuses.
 }

@@ -24,7 +24,7 @@ pub trait Version: DockerApiClient {
     /// };
     ///
     /// match client.get_version_info() {
-    ///     Ok(info) => println!("Version Info : {}", containers),
+    ///     Ok(info) => println!("Version Info : {}", info),
     ///     Err(err) => println!("An error occured : {}", err),
     /// }
     /// ```
