@@ -18,10 +18,11 @@ pub fn get_formatted_api_request(
 
     if method == "POST" || method == "post" {
         return Some(format!(
-            "POST {endpoint} HTTP/1.1{external_body}\r\nHost: {version}\r\n\r\n",
+            "POST {endpoint} HTTP/1.1\r\nHost: {version}\r\nContent-Length: {length}\r\nContent-Type: application/json\r\n\r\n{external_body}\r\n\r\n",
             endpoint = api_endpoint,
-            external_body = body,
-            version = API_VERSION
+            version = API_VERSION,
+            length = body.len(),
+            external_body = body
         ));
     }
 
