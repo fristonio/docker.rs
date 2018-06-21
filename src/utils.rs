@@ -131,33 +131,6 @@ impl Response {
     }
 }
 
-/// Parses HTTP response body. Takes an HTTP response calls the Response
-/// structure to parse the response.
-/// It returns the parsed HTTP response body. We are not dealing with
-/// errors here. So if something goes south do check once here although it
-/// is highly unlikely
-///
-/// TODO: Remove all printlns from here.
-pub fn parse_http_response_body(resp: Vec<u8>) -> Option<String> {
-    match Response::parse_http_response(resp) {
-        Ok(response) => {
-            if response.status_code == 200 || response.status_code == 201 {
-                return Some(response.body);
-            } else {
-                println!(
-                    "Response is not OK : {} :: {}",
-                    response.status_code, response.body
-                );
-                return None;
-            }
-        }
-        Err(err) => {
-            println!("Error while parsing response {}", err);
-            return None;
-        }
-    }
-}
-
 /// This function validates a given unix domain socket address, it can be either
 /// of an absolute socket path or unix domain socket address.
 ///

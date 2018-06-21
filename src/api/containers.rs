@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use api::api_utils;
 use api::DockerApiClient;
 use utils;
+use utils::Response;
 
 use serde_json;
 use serde_json::value;
@@ -136,7 +137,7 @@ pub trait Containers: DockerApiClient {
         api_endpoint: &str,
         method: &str,
         body: &str,
-    ) -> Result<String, String> {
+    ) -> Result<Response, String> {
         let req = match api_utils::get_formatted_api_request(
             api_endpoint,
             method,
@@ -146,15 +147,15 @@ pub trait Containers: DockerApiClient {
             None => return Err("Error while preparing request".to_string()),
         };
 
-        let resp = match self.request(&req) {
-            Some(resp) => match utils::parse_http_response_body(resp) {
-                Some(body) => body,
-                None => return Err("Response body was not valid".to_string()),
+        match self.request(&req) {
+            Some(resp) => match Response::parse_http_response(resp) {
+                Ok(response) => Ok(response),
+                Err(err) => {
+                    Err(format!("Response body was not valid : {}", err))
+                }
             },
-            None => return Err("Got no response from docker host.".to_string()),
-        };
-
-        Ok(resp)
+            None => Err("Got no response from docker host.".to_string()),
+        }
     }
 
     /// Get Containers from the API endpoint with the method and query_param.
@@ -168,7 +169,16 @@ pub trait Containers: DockerApiClient {
         let json_resp =
             match self.get_response_from_api(api_endpoint, method, query_param)
             {
-                Ok(resp) => resp,
+                Ok(resp) => {
+                    if resp.status_code == 200 {
+                        resp.body
+                    } else {
+                        return Err(format!(
+                            "Invalid Response : {} :: {}",
+                            resp.status_code, resp.body
+                        ));
+                    }
+                }
                 Err(err) => return Err(err),
             };
 
@@ -285,7 +295,13 @@ pub trait Containers: DockerApiClient {
 
         match self.get_response_from_api(&api_endpoint, method, &body) {
             Ok(resp) => {
-                match serde_json::from_str(&resp) {
+                if resp.status_code != 201 {
+                    return Err(format!(
+                        "Invalid Request : {} :: {}",
+                        resp.status_code, resp.body
+                    ));
+                }
+                match serde_json::from_str(&resp.body) {
                     Ok(info) => return Ok(info),
                     Err(err) => {
                         return Err(format!(
@@ -375,7 +391,13 @@ pub trait Containers: DockerApiClient {
 
         match self.get_response_from_api(&api_endpoint, method, "") {
             Ok(resp) => {
-                match serde_json::from_str(&resp) {
+                if resp.status_code != 200 {
+                    return Err(format!(
+                        "Invalid Request : {} :: {}",
+                        resp.status_code, resp.body
+                    ));
+                }
+                match serde_json::from_str(&resp.body) {
                     Ok(info) => return Ok(info),
                     Err(err) => {
                         return Err(format!(
@@ -403,11 +425,17 @@ pub trait Containers: DockerApiClient {
                 // If the response is null, then there is no changes in the file
                 // system so just return and empty vector. Serializing this will
                 // result in error.
-                if resp == "null" {
+                if resp.status_code != 200 {
+                    return Err(format!(
+                        "Invalid Request : {} :: {}",
+                        resp.status_code, resp.body
+                    ));
+                }
+                if resp.body == "null" {
                     return Ok(Vec::new());
                 }
 
-                match serde_json::from_str(&resp) {
+                match serde_json::from_str(&resp.body) {
                     Ok(info) => return Ok(info),
                     Err(err) => {
                         return Err(format!(
@@ -421,5 +449,131 @@ pub trait Containers: DockerApiClient {
         }
     }
 
-    // Function to manipulate container statuses.
+    /// Function to manipulate container status
+    /// It is a parent function for all the commands which result in a status change
+    /// of the container.
+    ///
+    /// This includes the following:
+    /// * `start_container`
+    /// * `stop_container`
+    /// * `pause_container`
+    /// * `unpause_container`
+    /// * `restart_container`
+    /// * `kill_container`
+    /// * `rename_container`
+    ///
+    /// You can call any of these function or directly manipulate_container_status
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// extern crate docker_rs;
+    ///
+    /// use docker_rs::api::containers::Containers;
+    /// use docker_rs::client::DockerClient;
+    ///
+    /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
+    ///     Ok(a) => a,
+    ///     Err(err) => {
+    ///         println!("{}", err);
+    ///         std::process::exit(1);
+    ///     }
+    /// };
+    ///
+    /// // ID of the container passed as an argument.
+    /// match client.manipulate_container_status("start", "f808ca...", "") {
+    ///     Ok(info) => println!("{:?}", info),
+    ///     Err(err) => println!("An error occured : {}", err),
+    /// }
+    ///
+    /// // Or alternatively you can also directly use
+    /// match client.start_container("f808ca...") {
+    ///     Ok(info) => println!("{}", info),
+    ///     Err(err) => println!("An error occured : {}", err),
+    /// }
+    ///
+    /// // Similarly other function can also be used
+    /// ```
+    fn manipulate_container_status(
+        &self,
+        action: &str,
+        id: &str,
+        params: &str,
+    ) -> Result<String, String> {
+        let api_endpoint = format!(
+            "/containers/{id}/{action}",
+            id = id,
+            action = action
+        );
+        let method = "GET";
+
+        match self.get_response_from_api(&api_endpoint, method, params) {
+            Ok(resp) => {
+                if resp.status_code == 204 {
+                    Ok(format!("Container {} successful", action))
+                } else if resp.status_code == 304 {
+                    Err(format!("Container already {}ed", action))
+                } else {
+                    Err(format!(
+                        "Error while requesting Docker API : {} :: {}",
+                        resp.status_code, resp.body
+                    ))
+                }
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    fn start_container(&self, id: &str) -> Result<String, String> {
+        self.manipulate_container_status("start", id, "")
+    }
+
+    fn stop_container(
+        &self,
+        id: &str,
+        delay: Option<&str>,
+    ) -> Result<String, String> {
+        let param = match delay {
+            Some(d) => format!("t={}", d),
+            None => String::new(),
+        };
+        self.manipulate_container_status("stop", id, &param)
+    }
+
+    fn pause_container(&self, id: &str) -> Result<String, String> {
+        self.manipulate_container_status("pause", id, "")
+    }
+
+    fn unpause_container(&self, id: &str) -> Result<String, String> {
+        self.manipulate_container_status("unpause", id, "")
+    }
+
+    fn restart_container(
+        &self,
+        id: &str,
+        delay: Option<&str>,
+    ) -> Result<String, String> {
+        let param = match delay {
+            Some(d) => format!("t={}", d),
+            None => String::new(),
+        };
+        self.manipulate_container_status("restart", id, &param)
+    }
+
+    fn kill_container(
+        &self,
+        id: &str,
+        signal: Option<&str>,
+    ) -> Result<String, String> {
+        let param = match signal {
+            Some(sig) => format!("signal={}", sig),
+            None => String::new(),
+        };
+        self.manipulate_container_status("kill", id, &param)
+    }
+
+    fn rename_container(&self, id: &str, name: &str) -> Result<String, String> {
+        let name_param = &format!("name={}", name);
+        self.manipulate_container_status("rename", id, name_param)
+    }
 }

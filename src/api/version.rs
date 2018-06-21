@@ -1,6 +1,6 @@
 use api::api_utils::get_formatted_api_request;
 use api::DockerApiClient;
-use utils;
+use utils::Response;
 
 pub trait Version: DockerApiClient {
     /// Get version info for Docker
@@ -38,9 +38,11 @@ pub trait Version: DockerApiClient {
         };
 
         let resp = match self.request(&req) {
-            Some(resp) => match utils::parse_http_response_body(resp) {
-                Some(body) => body,
-                None => return Err("Response body was not valid".to_string()),
+            Some(resp) => match Response::parse_http_response(resp) {
+                Ok(res) => res.body,
+                Err(_err) => {
+                    return Err("Response body was not valid".to_string())
+                }
             },
             None => return Err("Got no response from docker host.".to_string()),
         };
