@@ -9,11 +9,11 @@ pub trait Version: DockerApiClient {
     /// # Example
     ///
     /// ```rust
-    /// extern crate docker_rs;
+    /// extern crate rust_docker;
     ///
-    /// use docker_rs::api::containers::Containers;
-    /// use docker_rs::api::version::Version;
-    /// use docker_rs::client::DockerClient;
+    /// use rust_docker::api::containers::Containers;
+    /// use rust_docker::api::version::Version;
+    /// use rust_docker::client::DockerClient;
     ///
     /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
     ///     Ok(a) => a,

@@ -13,7 +13,7 @@ extern crate serde_json;
 
 pub mod api;
 pub mod client;
-mod errors;
-mod utils;
+pub mod errors;
+pub mod utils;
 
 pub use client::DockerClient;

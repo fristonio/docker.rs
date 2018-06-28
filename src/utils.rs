@@ -4,6 +4,8 @@ use std::path::Path;
 use std::str;
 use std::usize;
 
+use serde_json;
+
 // This implementation of HTTP response parsing is mostly taken from
 // https://github.com/p00s/minihttpse
 // with minor changes.
@@ -159,4 +161,15 @@ pub fn validate_unix_socket_address(address: &str) -> Option<Vec<&str>> {
     }
 
     return Some(addr_comp);
+}
+
+/// Checks if the JSON string provided is valid or not and returns
+/// a bool on its basis.
+pub fn validate_json_str(json_str: &str) -> bool {
+    let _val: serde_json::Value = match serde_json::from_str(json_str) {
+        Ok(val) => val,
+        Err(_) => return false,
+    };
+
+    true
 }

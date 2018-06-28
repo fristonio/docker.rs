@@ -4,6 +4,7 @@ use std::io::Write;
 use std::os::unix::net::UnixStream;
 
 use api::containers::Containers;
+use api::images::Images;
 use api::version::Version;
 use api::DockerApiClient;
 
@@ -127,3 +128,4 @@ impl DockerApiClient for DockerClient {
 
 impl Version for DockerClient {}
 impl Containers for DockerClient {}
+impl Images for DockerClient {}

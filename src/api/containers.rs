@@ -1,9 +1,7 @@
 #![allow(non_snake_case)]
 use std::collections::HashMap;
 
-use api::api_utils;
 use api::DockerApiClient;
-use utils::Response;
 
 use serde_json;
 
@@ -126,36 +124,6 @@ pub struct ContainerFsChange {
 }
 
 pub trait Containers: DockerApiClient {
-    /// Just a helper function for the Containers DockerApiClient.
-    /// It formats the API request using the given parameters, and using
-    /// this request the docker daemon and sends back the response of the request
-    /// if the request was successful else an err.
-    fn get_response_from_api(
-        &self,
-        api_endpoint: &str,
-        method: &str,
-        body: &str,
-    ) -> Result<Response, String> {
-        let req = match api_utils::get_formatted_api_request(
-            api_endpoint,
-            method,
-            body,
-        ) {
-            Some(req) => req,
-            None => return Err("Error while preparing request".to_string()),
-        };
-
-        match self.request(&req) {
-            Some(resp) => match Response::parse_http_response(resp) {
-                Ok(response) => Ok(response),
-                Err(err) => {
-                    Err(format!("Response body was not valid : {}", err))
-                }
-            },
-            None => Err("Got no response from docker host.".to_string()),
-        }
-    }
-
     /// Get Containers from the API endpoint with the method and query_param.
     /// Helper function for Container trait.
     fn get_containers(
@@ -200,10 +168,10 @@ pub trait Containers: DockerApiClient {
     /// # Example
     ///
     /// ```rust
-    /// extern crate docker_rs;
+    /// extern crate rust_docker;
     ///
-    /// use docker_rs::api::containers::Containers;
-    /// use docker_rs::client::DockerClient;
+    /// use rust_docker::api::containers::Containers;
+    /// use rust_docker::client::DockerClient;
     ///
     /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
     ///     Ok(a) => a,
@@ -322,10 +290,10 @@ pub trait Containers: DockerApiClient {
     /// # Example
     ///
     /// ```rust
-    /// extern crate docker_rs;
+    /// extern crate rust_docker;
     ///
-    /// use docker_rs::api::containers::Containers;
-    /// use docker_rs::client::DockerClient;
+    /// use rust_docker::api::containers::Containers;
+    /// use rust_docker::client::DockerClient;
     ///
     /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
     ///     Ok(a) => a,
@@ -364,10 +332,10 @@ pub trait Containers: DockerApiClient {
     /// # Example
     ///
     /// ```rust
-    /// extern crate docker_rs;
+    /// extern crate rust_docker;
     ///
-    /// use docker_rs::api::containers::Containers;
-    /// use docker_rs::client::DockerClient;
+    /// use rust_docker::api::containers::Containers;
+    /// use rust_docker::client::DockerClient;
     ///
     /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
     ///     Ok(a) => a,
@@ -465,10 +433,10 @@ pub trait Containers: DockerApiClient {
     /// # Example
     ///
     /// ```rust
-    /// extern crate docker_rs;
+    /// extern crate rust_docker;
     ///
-    /// use docker_rs::api::containers::Containers;
-    /// use docker_rs::client::DockerClient;
+    /// use rust_docker::api::containers::Containers;
+    /// use rust_docker::client::DockerClient;
     ///
     /// let client = match DockerClient::new("unix:///var/run/docker.sock") {
     ///     Ok(a) => a,
