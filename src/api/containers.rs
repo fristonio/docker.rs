@@ -5,6 +5,8 @@ use api::DockerApiClient;
 
 use serde_json;
 
+use errors::DockerApiError;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Container {
     pub Id: String,
@@ -131,7 +133,7 @@ pub trait Containers: DockerApiClient {
         api_endpoint: &str,
         method: &str,
         query_param: &str,
-    ) -> Result<Vec<Container>, String> {
+    ) -> Result<Vec<Container>, DockerApiError> {
         let json_resp =
             match self.get_response_from_api(api_endpoint, method, query_param)
             {
@@ -139,9 +141,8 @@ pub trait Containers: DockerApiClient {
                     if resp.status_code == 200 {
                         resp.body
                     } else {
-                        return Err(format!(
-                            "Invalid Response : {} :: {}",
-                            resp.status_code, resp.body
+                        return Err(DockerApiError::InvalidApiResponseError(
+                            resp.status_code,
                         ));
                     }
                 }
@@ -152,14 +153,11 @@ pub trait Containers: DockerApiClient {
         {
             Ok(info) => info,
             Err(err) => {
-                return Err(format!(
-                    "Error while deserializing JSON response : {}",
-                    err
-                ))
+                return Err(DockerApiError::JsonDeserializationError(err))
             }
         };
 
-        return Ok(containers);
+        Ok(containers)
     }
 
     /// List all the running containers
@@ -189,7 +187,7 @@ pub trait Containers: DockerApiClient {
     fn list_running_containers(
         &self,
         limit: Option<u32>,
-    ) -> Result<Vec<Container>, String> {
+    ) -> Result<Vec<Container>, DockerApiError> {
         let api_endpoint = "/containers/json";
         let method = "GET";
 
@@ -205,7 +203,7 @@ pub trait Containers: DockerApiClient {
     fn list_all_containers(
         &self,
         limit: Option<u32>,
-    ) -> Result<Vec<Container>, String> {
+    ) -> Result<Vec<Container>, DockerApiError> {
         let api_endpoint = "/containers/json";
         let method = "GET";
 
@@ -224,7 +222,7 @@ pub trait Containers: DockerApiClient {
         &self,
         filter: &str,
         limit: Option<u32>,
-    ) -> Result<Vec<Container>, String> {
+    ) -> Result<Vec<Container>, DockerApiError> {
         let api_endpoint = "/containers/json";
         let method = "GET";
 
@@ -246,38 +244,24 @@ pub trait Containers: DockerApiClient {
         &self,
         name: &str,
         config: ContainerConfig,
-    ) -> Result<CreateContainerResponse, String> {
+    ) -> Result<CreateContainerResponse, DockerApiError> {
         let api_endpoint = format!("/containers/create?name={}", name);
         let method = "POST";
         let body = match serde_json::to_string(&config) {
             Ok(body) => body,
-            Err(err) => {
-                return Err(format!(
-                    "Error while serialize Cotainer config : {}",
-                    err
-                ))
-            }
+            Err(err) => return Err(DockerApiError::JsonSerializationError(err)),
         };
 
-        match self.get_response_from_api(&api_endpoint, method, &body) {
-            Ok(resp) => {
-                if resp.status_code != 201 {
-                    return Err(format!(
-                        "Invalid Request : {} :: {}",
-                        resp.status_code, resp.body
-                    ));
-                }
-                match serde_json::from_str(&resp.body) {
-                    Ok(info) => return Ok(info),
-                    Err(err) => {
-                        return Err(format!(
-                            "Error while deserializing JSON response : {}",
-                            err
-                        ))
-                    }
-                };
-            }
-            Err(err) => Err(err),
+        let resp = self.get_response_from_api(&api_endpoint, method, &body)?;
+
+        if resp.status_code != 201 {
+            return Err(DockerApiError::InvalidApiResponseError(
+                resp.status_code,
+            ));
+        }
+        match serde_json::from_str(&resp.body) {
+            Ok(info) => Ok(info),
+            Err(err) => Err(DockerApiError::JsonDeserializationError(err)),
         }
     }
 
@@ -316,7 +300,7 @@ pub trait Containers: DockerApiClient {
         name: &str,
         image: &str,
         cmd: Vec<String>,
-    ) -> Result<CreateContainerResponse, String> {
+    ) -> Result<CreateContainerResponse, DockerApiError> {
         let config = ContainerConfig {
             Image: image.to_string(),
             Cmd: cmd,
@@ -351,29 +335,24 @@ pub trait Containers: DockerApiClient {
     ///     Err(err) => println!("An error occured : {}", err),
     /// }
     /// ```
-    fn inspect_container(&self, id: &str) -> Result<ContainerDetails, String> {
+    fn inspect_container(
+        &self,
+        id: &str,
+    ) -> Result<ContainerDetails, DockerApiError> {
         let api_endpoint = format!("/containers/{id}/json", id = id);
         let method = "GET";
 
-        match self.get_response_from_api(&api_endpoint, method, "") {
-            Ok(resp) => {
-                if resp.status_code != 200 {
-                    return Err(format!(
-                        "Invalid Request : {} :: {}",
-                        resp.status_code, resp.body
-                    ));
-                }
-                match serde_json::from_str(&resp.body) {
-                    Ok(info) => return Ok(info),
-                    Err(err) => {
-                        return Err(format!(
-                            "Error while deserializing JSON response : {}",
-                            err
-                        ))
-                    }
-                };
-            }
-            Err(err) => Err(err),
+        let resp = self.get_response_from_api(&api_endpoint, method, "")?;
+
+        if resp.status_code != 200 {
+            return Err(DockerApiError::InvalidApiResponseError(
+                resp.status_code,
+            ));
+        }
+
+        match serde_json::from_str(&resp.body) {
+            Ok(info) => Ok(info),
+            Err(err) => Err(DockerApiError::JsonDeserializationError(err)),
         }
     }
 
@@ -382,36 +361,27 @@ pub trait Containers: DockerApiClient {
     fn get_container_filesystem_changes(
         &self,
         id: &str,
-    ) -> Result<Vec<ContainerFsChange>, String> {
+    ) -> Result<Vec<ContainerFsChange>, DockerApiError> {
         let api_endpoint = format!("/containers/{id}/changes", id = id);
         let method = "GET";
 
-        match self.get_response_from_api(&api_endpoint, method, "") {
-            Ok(resp) => {
-                // If the response is null, then there is no changes in the file
-                // system so just return and empty vector. Serializing this will
-                // result in error.
-                if resp.status_code != 200 {
-                    return Err(format!(
-                        "Invalid Request : {} :: {}",
-                        resp.status_code, resp.body
-                    ));
-                }
-                if resp.body == "null" {
-                    return Ok(Vec::new());
-                }
+        let resp = self.get_response_from_api(&api_endpoint, method, "")?;
+        // If the response is null, then there is no changes in the file
+        // system so just return and empty vector. Serializing this will
+        // result in error.
+        if resp.status_code != 200 {
+            return Err(DockerApiError::InvalidApiResponseError(
+                resp.status_code,
+            ));
+        }
 
-                match serde_json::from_str(&resp.body) {
-                    Ok(info) => return Ok(info),
-                    Err(err) => {
-                        return Err(format!(
-                            "Error while deserializing JSON response : {}",
-                            err
-                        ))
-                    }
-                };
-            }
-            Err(err) => Err(err),
+        if resp.body == "null" {
+            return Ok(Vec::new());
+        }
+
+        match serde_json::from_str(&resp.body) {
+            Ok(info) => Ok(info),
+            Err(err) => Err(DockerApiError::JsonDeserializationError(err)),
         }
     }
 
@@ -465,7 +435,7 @@ pub trait Containers: DockerApiClient {
         action: &str,
         id: &str,
         params: &str,
-    ) -> Result<String, String> {
+    ) -> Result<String, DockerApiError> {
         let api_endpoint = format!(
             "/containers/{id}/{action}",
             id = id,
@@ -473,24 +443,23 @@ pub trait Containers: DockerApiClient {
         );
         let method = "GET";
 
-        match self.get_response_from_api(&api_endpoint, method, params) {
-            Ok(resp) => {
-                if resp.status_code == 204 {
-                    Ok(format!("Container {} successful", action))
-                } else if resp.status_code == 304 {
-                    Err(format!("Container already {}ed", action))
-                } else {
-                    Err(format!(
-                        "Error while requesting Docker API : {} :: {}",
-                        resp.status_code, resp.body
-                    ))
-                }
-            }
-            Err(err) => return Err(err),
+        let resp = self.get_response_from_api(&api_endpoint, method, params)?;
+
+        if resp.status_code == 204 {
+            Ok(format!("Container {} successful", action))
+        } else if resp.status_code == 304 {
+            Err(DockerApiError::ContainerError(format!(
+                "Container already {}ed",
+                action
+            )))
+        } else {
+            Err(DockerApiError::InvalidApiResponseError(
+                resp.status_code,
+            ))
         }
     }
 
-    fn start_container(&self, id: &str) -> Result<String, String> {
+    fn start_container(&self, id: &str) -> Result<String, DockerApiError> {
         self.manipulate_container_status("start", id, "")
     }
 
@@ -498,7 +467,7 @@ pub trait Containers: DockerApiClient {
         &self,
         id: &str,
         delay: Option<&str>,
-    ) -> Result<String, String> {
+    ) -> Result<String, DockerApiError> {
         let param = match delay {
             Some(d) => format!("t={}", d),
             None => String::new(),
@@ -506,11 +475,11 @@ pub trait Containers: DockerApiClient {
         self.manipulate_container_status("stop", id, &param)
     }
 
-    fn pause_container(&self, id: &str) -> Result<String, String> {
+    fn pause_container(&self, id: &str) -> Result<String, DockerApiError> {
         self.manipulate_container_status("pause", id, "")
     }
 
-    fn unpause_container(&self, id: &str) -> Result<String, String> {
+    fn unpause_container(&self, id: &str) -> Result<String, DockerApiError> {
         self.manipulate_container_status("unpause", id, "")
     }
 
@@ -518,7 +487,7 @@ pub trait Containers: DockerApiClient {
         &self,
         id: &str,
         delay: Option<&str>,
-    ) -> Result<String, String> {
+    ) -> Result<String, DockerApiError> {
         let param = match delay {
             Some(d) => format!("t={}", d),
             None => String::new(),
@@ -530,7 +499,7 @@ pub trait Containers: DockerApiClient {
         &self,
         id: &str,
         signal: Option<&str>,
-    ) -> Result<String, String> {
+    ) -> Result<String, DockerApiError> {
         let param = match signal {
             Some(sig) => format!("signal={}", sig),
             None => String::new(),
@@ -538,7 +507,11 @@ pub trait Containers: DockerApiClient {
         self.manipulate_container_status("kill", id, &param)
     }
 
-    fn rename_container(&self, id: &str, name: &str) -> Result<String, String> {
+    fn rename_container(
+        &self,
+        id: &str,
+        name: &str,
+    ) -> Result<String, DockerApiError> {
         let name_param = &format!("name={}", name);
         self.manipulate_container_status("rename", id, name_param)
     }

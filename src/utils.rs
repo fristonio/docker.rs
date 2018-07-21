@@ -6,6 +6,8 @@ use std::usize;
 
 use serde_json;
 
+use errors::DockerApiError;
+
 // This implementation of HTTP response parsing is mostly taken from
 // https://github.com/p00s/minihttpse
 // with minor changes.
@@ -17,13 +19,17 @@ pub struct Response {
     pub status_code: usize,
     pub body: String,
 }
+
 /// Response represent a minimal HTTP response that we are concerned with
 /// for docker API response parsing.
 ///
 /// The implementation is pretty straight forward and does not do something
 /// awfully bad.
 impl Response {
-    pub fn parse_http_response(res: Vec<u8>) -> Result<Response, String> {
+    /// Public function to parse the HTTP response provided as an argument.
+    pub fn parse_http_response(
+        res: Vec<u8>,
+    ) -> Result<Response, DockerApiError> {
         let mut pos: usize = 0;
         for i in 0..(res.len() - 1) {
             if res[i] == CR && res[i + 1] == LF && res[i + 2] == CR
@@ -35,14 +41,20 @@ impl Response {
         }
 
         if pos == 0 {
-            return Err("Not a valid HTTP response".to_string());
+            return Err(DockerApiError::HTTPResponseParseError(
+                "Not a valid HTTP response",
+            ));
         }
 
         let (resp_header, resp_body): (&[u8], &[u8]) = res.split_at(pos);
 
         let header_info = match String::from_utf8(resp_header.to_vec()) {
             Ok(h) => h,
-            Err(_) => return Err("Error while parsing HTTP header".to_string()),
+            Err(_) => {
+                return Err(DockerApiError::HTTPResponseParseError(
+                    "Error while parsing HTTP header",
+                ))
+            }
         };
 
         let body = resp_body[1..].to_owned();
@@ -54,7 +66,9 @@ impl Response {
         let status_code: usize = match status_vec[1].parse() {
             Ok(s) => s,
             Err(_) => {
-                return Err("Error while parsing HTTP status code".to_string())
+                return Err(DockerApiError::HTTPResponseParseError(
+                    "Error while parsing HTTP status code",
+                ))
             }
         };
 
@@ -72,10 +86,7 @@ impl Response {
         let body = match headers.get("Transfer-Encoding") {
             Some(enc) => {
                 if enc == "chunked" {
-                    match Response::parse_chunk(body) {
-                        Ok(parsed) => parsed,
-                        Err(err) => return Err(err),
-                    }
+                    Response::parse_chunk(body)?
                 } else {
                     body
                 }
@@ -86,7 +97,9 @@ impl Response {
         let response = match String::from_utf8(body) {
             Ok(s) => s.trim().to_owned(),
             Err(_) => {
-                return Err("Error while parsing response body".to_string())
+                return Err(DockerApiError::HTTPResponseParseError(
+                    "Error while parsing response body",
+                ))
             }
         };
 
@@ -96,7 +109,9 @@ impl Response {
         })
     }
 
-    pub fn parse_chunk(body: Vec<u8>) -> Result<Vec<u8>, String> {
+    /// A helper function to parse_http_reseponse, when the Header Transfer-Encoding
+    /// `chunked` is present in the response.
+    pub fn parse_chunk(body: Vec<u8>) -> Result<Vec<u8>, DockerApiError> {
         let mut buf: Vec<u8> = Vec::new();
         let mut count: usize = 0;
 
@@ -109,18 +124,28 @@ impl Response {
                 }
             }
             if pos == 0 {
-                return Err("Chuncked response without length marker".to_string());
+                return Err(DockerApiError::HTTPResponseParseError(
+                    "Chuncked response without length marker",
+                ));
             }
 
             let size_s = match str::from_utf8(&body[count..pos]) {
                 Ok(s) => s,
-                Err(_) => return Err("Invlid chunks".to_string()),
+                Err(_) => {
+                    return Err(DockerApiError::HTTPResponseParseError(
+                        "Invlid chunks",
+                    ))
+                }
             };
 
             count = pos + 2;
             let size: usize = match usize::from_str_radix(size_s, 16) {
                 Ok(s) => s,
-                Err(_) => return Err("Invalid chunks".to_string()),
+                Err(_) => {
+                    return Err(DockerApiError::HTTPResponseParseError(
+                        "Invalid chunks",
+                    ))
+                }
             };
 
             if size == 0 && count + 2 == body.len() {
