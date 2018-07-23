@@ -48,9 +48,9 @@ quick_error! {
             display("Error while parsing response : {}", err)
         }
 
-        InvalidApiResponseError(status: usize) {
+        InvalidApiResponseError(status: usize, body: String) {
             description("Response from Docker API is not valid")
-            display("Invalid API response, status_code : {}", status)
+            display("Invalid API response, status_code : {}, body: {}", status, body)
         }
 
         ApiRequestError(msg: &'static str) {

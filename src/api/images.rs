@@ -68,6 +68,7 @@ pub trait Images: DockerApiClient {
         if resp.status_code != 200 {
             return Err(DockerApiError::InvalidApiResponseError(
                 resp.status_code,
+                resp.body,
             ));
         }
 
