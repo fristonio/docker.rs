@@ -1,8 +1,8 @@
-extern crate docker_rs;
+extern crate rust_docker;
 
-use docker_rs::api::containers::Containers;
-use docker_rs::api::version::Version;
-use docker_rs::client::DockerClient;
+use rust_docker::api::containers::Containers;
+use rust_docker::api::version::Version;
+use rust_docker::client::DockerClient;
 
 use std::process::exit;
 
@@ -32,4 +32,27 @@ fn test() {
         .create_container_minimal("kk", "debian:jessie", cmd)
         .unwrap();
     println!("{:?}", res);
+}
+
+#[test]
+fn test_error_when_image_does_not_exist_locally() {
+    if let Ok(client) = DockerClient::new("unix:///var/run/docker.sock") {
+        let cmd = vec![String::from("ls")];
+        let res = client.create_container_minimal(
+            "kk",
+            "this-image:doesnt-exist",
+            cmd,
+        );
+
+        assert!(res.is_err());
+
+        if let Err(e) = res {
+            assert_eq!(
+                format!("{}", e),
+                "Invalid API response, status_code : 404, body: {\"message\":\"No such image: this-image:doesnt-exist\"}"
+            );
+        }
+    } else {
+        assert!(false, "Could not create a new DockerClient object");
+    }
 }

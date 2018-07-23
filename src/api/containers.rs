@@ -20,7 +20,7 @@ pub struct Container {
     pub Labels: Option<HashMap<String, String>>,
 
     #[serde(default)]
-    pub SizeRw: Option<u64>,
+    pub SizeRw: Option<i64>,
 
     #[serde(default)]
     pub SizeRootFs: u64,
@@ -42,9 +42,11 @@ pub struct HostConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Mounts {
-    pub Name: String,
+    #[serde(default)]
+    pub Name: Option<String>,
     pub Source: String,
     pub Destination: String,
+    #[serde(default)]
     pub Driver: String,
     pub Mode: String,
     pub RW: bool,
@@ -143,6 +145,7 @@ pub trait Containers: DockerApiClient {
                     } else {
                         return Err(DockerApiError::InvalidApiResponseError(
                             resp.status_code,
+                            resp.body,
                         ));
                     }
                 }
@@ -240,6 +243,8 @@ pub trait Containers: DockerApiClient {
     /// Create a container from the ContainerConfig structure with the provided
     /// `name`. The response for the request is the CreateContaierResponse struct
     /// which contains the ID for the container which we created.
+    /// The image must exist locally or the API call will fail with a 404 status
+    /// code.
     fn create_container(
         &self,
         name: &str,
@@ -257,6 +262,7 @@ pub trait Containers: DockerApiClient {
         if resp.status_code != 201 {
             return Err(DockerApiError::InvalidApiResponseError(
                 resp.status_code,
+                resp.body,
             ));
         }
         match serde_json::from_str(&resp.body) {
@@ -347,6 +353,7 @@ pub trait Containers: DockerApiClient {
         if resp.status_code != 200 {
             return Err(DockerApiError::InvalidApiResponseError(
                 resp.status_code,
+                resp.body,
             ));
         }
 
@@ -372,6 +379,7 @@ pub trait Containers: DockerApiClient {
         if resp.status_code != 200 {
             return Err(DockerApiError::InvalidApiResponseError(
                 resp.status_code,
+                resp.body,
             ));
         }
 
@@ -455,6 +463,7 @@ pub trait Containers: DockerApiClient {
         } else {
             Err(DockerApiError::InvalidApiResponseError(
                 resp.status_code,
+                resp.body,
             ))
         }
     }
