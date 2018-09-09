@@ -4,7 +4,7 @@ pub mod images;
 pub mod version;
 
 use errors::DockerApiError;
-use utils::Response;
+use utils::api::Response;
 
 /// Highest level trait for a DockerAPI client
 ///

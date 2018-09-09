@@ -32,7 +32,7 @@ impl DockerClient {
         // Check if the provided unix socket address is valid and return
         // components for the socket.
         let addr_components =
-            match utils::validate_unix_socket_address(connection_addr) {
+            match utils::api::validate_unix_socket_address(connection_addr) {
                 Some(addr_comps) => addr_comps,
                 None => {
                     return Err(DockerClientError::InvalidTargetAddress(
@@ -76,7 +76,8 @@ impl DockerClient {
 /// propogate the changes to other.
 impl Clone for DockerClient {
     fn clone(&self) -> DockerClient {
-        let sock = self.socket
+        let sock = self
+            .socket
             .try_clone()
             .expect("Error while trying to clone the socket");
 
