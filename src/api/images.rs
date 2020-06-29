@@ -55,7 +55,8 @@ pub trait Images: DockerApiClient {
         let method = "GET";
 
         let filter_val = filter.unwrap_or("");
-        if !filter_val.is_empty() && !utils::validate_json_str(filter_val) {
+        if !filter_val.is_empty() && !utils::api::validate_json_str(filter_val)
+        {
             return Err(DockerApiError::MismatchedParametersError(
                 "The provided filter is not a valid JSON.",
             ));
@@ -81,6 +82,50 @@ pub trait Images: DockerApiClient {
             };
 
         Ok(images_info)
+    }
+
+    /// Build docker image from the given directory
+    /// This function uses docker API to construct an image, and returns the ID
+    /// for that image as a result. If an error occurs in between it returns
+    /// DockerApiError.
+    ///
+    /// Building image will be canceled in case when the connection to the docker host
+    /// is lost. This function assumes that the Dockerfile is present in the root of the
+    /// base directory. If there is not Dockerfile in the root of the directory, this
+    /// function will return an early error specifying that the Dockerfile was not found.
+    ///
+    /// TODO: Add an option to provide a custom Dockerfile path inside the base directory.
+    fn build_image(&self, base_dir: &str) -> Result<(), DockerApiError> {
+        let base_dir_path = match utils::file::get_validated_dir_path(base_dir)
+        {
+            Ok(base_dir_path) => base_dir_path,
+            Err(e) => {
+                Err(DockerApiError::MismatchedParametersError(e.description()))
+            }
+        };
+
+        let default_dockerfile_path = "Dockerfile";
+        if !base_dir_path
+            .join(default_dockerfile_path)
+            .as_path()
+            .is_file()
+        {
+            Err(DockerApiError::MismatchedParametersError(format!(
+                "No Dockerfile present in the root of the directory : {}",
+                base_dir_path
+            )))
+        }
+
+        let tar_path = match utils::file::create_gzipped_tarball(
+            base_dir_path.to_str().unwrap(),
+        ) {
+            Ok(tar_path) => tar_path,
+            Err(e) => {
+                Err(DockerApiError::MismatchedParametersError(e.description()))
+            }
+        };
+
+        Ok(build_image_from_tarball(tar_path.to_str().unwrap()))
     }
 
     fn build_image_from_tarball(&self, _tar_path: &str) {}

@@ -1,6 +1,6 @@
 use api::api_utils::get_formatted_api_request;
 use api::DockerApiClient;
-use utils::Response;
+use utils::api::Response;
 
 pub trait Version: DockerApiClient {
     /// Get version info for Docker

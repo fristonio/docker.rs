@@ -32,7 +32,9 @@ impl Response {
     ) -> Result<Response, DockerApiError> {
         let mut pos: usize = 0;
         for i in 0..(res.len() - 1) {
-            if res[i] == CR && res[i + 1] == LF && res[i + 2] == CR
+            if res[i] == CR
+                && res[i + 1] == LF
+                && res[i + 2] == CR
                 && res[i + 3] == LF
             {
                 pos = i + 3;
