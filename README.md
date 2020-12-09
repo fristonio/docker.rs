@@ -12,7 +12,7 @@ docker.rs is currently under development, follow the below instructions to get s
 
 ### Usage
 
-docker_rs provides a rust interface to interact with Docker API. It is currently built to support the
+docker.rs provides a rust interface to interact with Docker API. It is currently built to support the
 latest version(1.37) of docker API. To get started make sure you have the docker daemon set up on your system.
 
 * For now only API implementation for only containers is available. I will be adding the rest soon.
@@ -90,5 +90,5 @@ This project is licensed under [MIT License](/LICENSE.md)
 
 ### Development notes
 
-* docker-rs encourage you to keep your code foramtted using rustfmt.
+* docker.rs encourage you to keep your code formatted using rustfmt.
 * For any feature you add to the library, write proper documentation according to rust standards.
